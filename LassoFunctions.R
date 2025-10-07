@@ -38,7 +38,11 @@ soft <- function(a, lambda){
 # lamdba - tuning parameter
 # beta - value of beta at which to evaluate the function
 lasso <- function(Xtilde, Ytilde, beta, lambda){
- 
+  n <- nrow(Xtilde)
+  r <- as.numeric(Ytilde - Xtilde %*% beta)
+  loss <- sum(r^2) / (2 * n)
+  pen  <- lambda * sum(abs(beta))
+  return(loss + pen)
 }
 
 # [ToDo] Fit LASSO on standardized data for a given lambda
@@ -49,22 +53,63 @@ lasso <- function(Xtilde, Ytilde, beta, lambda){
 # eps - precision level for convergence assessment, default 0.001
 fitLASSOstandardized <- function(Xtilde, Ytilde, lambda, beta_start = NULL, eps = 0.001){
   #[ToDo]  Check that n is the same between Xtilde and Ytilde
+  if (nrow(Xtilde) != length(Ytilde))
+    stop("nrow(Xtilde) must equal length(Ytilde).")
   
   #[ToDo]  Check that lambda is non-negative
+  if (!is.numeric(lambda) || length(lambda) != 1 || lambda < 0)
+    stop("lambda must be a single non-negative number.")
+  
+  # Parameter set up
+  Ytilde <- as.numeric(Ytilde)
+  n <- nrow(Xtilde)
+  p <- ncol(Xtilde)
   
   #[ToDo]  Check for starting point beta_start. 
   # If none supplied, initialize with a vector of zeros.
   # If supplied, check for compatibility with Xtilde in terms of p
+  if (is.null(beta_start)) {
+    beta <- numeric(p)
+  } else {
+    if (length(beta_start) != p) {
+      stop("beta_start length must equal p.")
+    }
+    beta <- as.numeric(beta_start)
+  }
   
   #[ToDo]  Coordinate-descent implementation. 
   # Stop when the difference between objective functions is less than eps for the first time.
   # For example, if you have 3 iterations with objectives 3, 1, 0.99999,
   # your should return fmin = 0.99999, and not have another iteration
   
-  # Return 
-  # beta - the solution (a vector)
-  # fmin - optimal function value (value of objective at beta, scalar)
-  return(list(beta = beta, fmin = fmin))
+  # Initial objective
+  r <- as.numeric(Ytilde - Xtilde %*% beta)
+  f_prev <- lasso(Xtilde, Ytilde, beta, lambda)
+  
+  max_iter <- 10000L
+  for (k in 1:max_iter) {
+    r <- as.numeric(Ytilde - Xtilde %*% beta)
+    
+    for (j in 1:p) {
+      xj <- Xtilde[, j]
+      z <- beta[j] + sum(xj * r) / n
+      beta_new_j <- soft(z, lambda)
+      r <- r + xj * (beta[j] - beta_new_j)
+      beta[j] <- beta_new_j
+    }
+    
+    f_curr <- lasso(Xtilde, Ytilde, beta, lambda)
+    if ((f_prev - f_curr) < eps){
+      # Return 
+      # beta - the solution (a vector)
+      # fmin - optimal function value (value of objective at beta, scalar)
+      return(list(beta = beta, fmin = f_curr))
+    }
+    f_prev <- f_curr
+  }
+  
+  warning("Reached max_iter without meeting eps criterion; returning last iterate.")
+  return(list(beta = beta, fmin = lasso(Xtilde, Ytilde, beta, lambda)))
 }
 
 # [ToDo] Fit LASSO on standardized data for a sequence of lambda values. Sequential version of a previous function.
