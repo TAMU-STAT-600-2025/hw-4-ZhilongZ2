@@ -15,3 +15,14 @@ Ytilde <- out$Ytilde
 colMeans(Xtilde)
 t(Xtilde) %*% Xtilde / n
 mean(Ytilde)
+
+# Test soft
+softthresh <- function(x, lambda){
+  # [ToDo] Fill in to return S(x, lambda)
+  return(sign(x) * max(abs(x) - lambda, 0))
+} # code from class
+
+a <- rnorm(1)
+lambda <- runif(1)
+softthresh(a, lambda) == soft(a, lambda)
+
