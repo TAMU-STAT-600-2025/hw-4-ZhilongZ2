@@ -43,3 +43,12 @@ Ytilde <- out$Ytilde
 fit1 <- fitLASSOstandardized(Xtilde, Ytilde, lambda = 0.01)
 sum(abs(fit1$beta))
 fit1$fmin
+
+fit2 <- fitLASSOstandardized_seq(Xtilde, Ytilde, lambda_seq = NULL, n_lambda = 60, eps = 0.001)
+plot(fit2$fmin_vec)
+sum(abs(fit2$beta_mat[, 59]))
+
+fit3 <- fitLASSOstandardized_seq(Xtilde, Ytilde, lambda_seq = seq(from = 1, to = 0.01, by = -0.05))
+plot(fit3$fmin_vec)
+plot(fit3$lambda_seq)
+
