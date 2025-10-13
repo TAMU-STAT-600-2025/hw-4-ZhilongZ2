@@ -27,7 +27,7 @@ a <- rnorm(1)
 lambda <- runif(1)
 softthresh(a, lambda) == soft(a, lambda)
 
-# Test fitLASSO functions
+# Test fitLASSO functions & cvLASSO function
 library(hdi)
 data(riboflavin)
 

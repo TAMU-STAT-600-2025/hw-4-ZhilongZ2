@@ -272,8 +272,7 @@ cvLASSO <- function(X ,Y, lambda_seq = NULL, n_lambda = 60, k = 5, fold_ids = NU
 
   # [ToDo] Find lambda_1SE
   thresh <- cvm[idx_min] + cvse[idx_min]
-  # Largest λ with CV(λ) <= threshold
-  idx_1se <- tail(which(cvm <= thresh), 1)
+  idx_1se <- which(cvm <= thresh)[1]
   lambda_1se <- lambda_seq_used[idx_1se]
   
   
