@@ -192,18 +192,28 @@ fitLASSOstandardized_seq <- function(Xtilde, Ytilde, lambda_seq = NULL, n_lambda
 # eps - precision level for convergence assessment, default 0.001
 fitLASSO <- function(X ,Y, lambda_seq = NULL, n_lambda = 60, eps = 0.001){
   # [ToDo] Center and standardize X,Y based on standardizeXY function
- 
+  std <- standardizeXY(X, Y)
+  Xtilde  <- std$Xtilde
+  Ytilde  <- std$Ytilde
+  Ymean   <- std$Ymean
+  Xmeans  <- std$Xmeans
+  weights <- std$weights
+
   # [ToDo] Fit Lasso on a sequence of values using fitLASSOstandardized_seq
   # (make sure the parameters carry over)
+  fit <- fitLASSOstandardized_seq(Xtilde, Ytilde, lambda_seq = lambda_seq, 
+                                  n_lambda = n_lambda, eps = eps)
  
   # [ToDo] Perform back scaling and centering to get original intercept and coefficient vector
   # for each lambda
+  beta_mat <- sweep(fit$beta_mat, 1, weights, FUN = "/")
+  beta0_vec <- as.numeric(Ymean - crossprod(Xmeans, beta_mat))
   
   # Return output
   # lambda_seq - the actual sequence of tuning parameters used
   # beta_mat - p x length(lambda_seq) matrix of corresponding solutions at each lambda value (original data without center or scale)
   # beta0_vec - length(lambda_seq) vector of intercepts (original data without center or scale)
-  return(list(lambda_seq = lambda_seq, beta_mat = beta_mat, beta0_vec = beta0_vec))
+  return(list(lambda_seq = fit$lambda_seq, beta_mat = beta_mat, beta0_vec = beta0_vec))
 }
 
 
@@ -217,16 +227,54 @@ fitLASSO <- function(X ,Y, lambda_seq = NULL, n_lambda = 60, eps = 0.001){
 # eps - precision level for convergence assessment, default 0.001
 cvLASSO <- function(X ,Y, lambda_seq = NULL, n_lambda = 60, k = 5, fold_ids = NULL, eps = 0.001){
   # [ToDo] Fit Lasso on original data using fitLASSO
- 
+  n <- nrow(X)
+  p <- ncol(X)
+  
+  fit <- fitLASSO(X, Y, lambda_seq = lambda_seq, n_lambda = n_lambda, eps = eps)
+  lambda_seq_used <- fit$lambda_seq
+  L <- length(lambda_seq_used)
+  
   # [ToDo] If fold_ids is NULL, split the data randomly into k folds.
   # If fold_ids is not NULL, split the data according to supplied fold_ids.
+  if (is.null(fold_ids)) {
+    fold_ids <- sample(rep_len(1:k, n))
+  } else {
+    if (length(fold_ids) != n) stop("fold_ids must have length n.")
+    if (!identical(sort(unique(fold_ids)), 1:max(fold_ids))) stop("fold_ids should be positive integers 1..K.")
+    k <- max(fold_ids)
+  }
   
   # [ToDo] Calculate LASSO on each fold using fitLASSO,
   # and perform any additional calculations needed for CV(lambda) and SE_CV(lambda)
+  mse_folds <- matrix(nrow = k, ncol = L)
+  
+  for (fold in 1:k) {
+    X_tr <- X[fold_ids != fold, , drop = FALSE]
+    Y_tr <- Y[fold_ids != fold]
+
+    X_va <- X[fold_ids == fold, , drop = FALSE]
+    Y_va <- Y[fold_ids == fold]
+    
+    fit_tr <- fitLASSO(X_tr, Y_tr, lambda_seq = lambda_seq_used, n_lambda = L, eps = eps)
+    yhat_mat <- matrix(fit_tr$beta0_vec, nrow = nrow(X_va), ncol = L, byrow = TRUE) +
+      X_va %*% fit_tr$beta_mat
+
+    resid_mat <- yhat_mat - matrix(Y_va, nrow = length(Y_va), ncol = L, byrow = FALSE)
+    mse_folds[fold, ] <- colMeans(resid_mat^2)
+  }
+  
+  cvm  <- colMeans(mse_folds)
+  cvse <- apply(mse_folds, 2, sd) / sqrt(k)
   
   # [ToDo] Find lambda_min
+  idx_min <- which.min(cvm)
+  lambda_min <- lambda_seq_used[idx_min]
 
   # [ToDo] Find lambda_1SE
+  thresh <- cvm[idx_min] + cvse[idx_min]
+  # Largest λ with CV(λ) <= threshold
+  idx_1se <- tail(which(cvm <= thresh), 1)
+  lambda_1se <- lambda_seq_used[idx_1se]
   
   
   # Return output
@@ -239,6 +287,8 @@ cvLASSO <- function(X ,Y, lambda_seq = NULL, n_lambda = 60, k = 5, fold_ids = NU
   # lambda_1se - selected lambda based on 1SE rule
   # cvm - values of CV(lambda) for each lambda
   # cvse - values of SE_CV(lambda) for each lambda
-  return(list(lambda_seq = lambda_seq, beta_mat = beta_mat, beta0_vec = beta0_vec, fold_ids = fold_ids, lambda_min = lambda_min, lambda_1se = lambda_1se, cvm = cvm, cvse = cvse))
+  return(list(lambda_seq = lambda_seq_used, beta_mat = fit$beta_mat, beta0_vec = fit$beta0_vec, 
+              fold_ids = fold_ids, lambda_min = lambda_min, lambda_1se = lambda_1se, 
+              cvm = cvm, cvse = cvse))
 }
 

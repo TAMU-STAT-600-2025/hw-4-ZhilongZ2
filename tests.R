@@ -27,7 +27,7 @@ a <- rnorm(1)
 lambda <- runif(1)
 softthresh(a, lambda) == soft(a, lambda)
 
-# Test fitLASSOstandardized
+# Test fitLASSO functions
 library(hdi)
 data(riboflavin)
 
@@ -52,3 +52,10 @@ fit3 <- fitLASSOstandardized_seq(Xtilde, Ytilde, lambda_seq = seq(from = 1, to =
 plot(fit3$fmin_vec)
 plot(fit3$lambda_seq)
 
+fit4 <- fitLASSO(X, Y)
+plot(fit4$lambda_seq)
+
+fit <- cvLASSO(X, Y)
+plot(fit$lambda_seq)
+fit$cvm
+fit$lambda_min
